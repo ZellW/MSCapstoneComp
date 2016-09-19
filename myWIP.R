@@ -65,6 +65,33 @@ myLoanData$ChargedOff<-0
 #DT[,NumberOfLoansClean:=length(LoanID),by="CustomerID"]
 #Big differecne.  I deleted the duplicate, this counts them as 2
 
+#5B  Loan Purpose Factors
+
+myLoanData$Purpose <- as.factor(myLoanData$Purpose)
+myLoanData$Purpose[myLoanData$Purpose == "other"] <- "Other"
+
+#Add a level
+myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "BuyCarHouse"))
+myLoanData$Purpose[myLoanData$Purpose == "Buy House"] <- "BuyCarHouse"
+myLoanData$Purpose[myLoanData$Purpose == "Buy a Car"] <- "BuyCarHouse"
+
+myLoanData$Purpose[myLoanData$Purpose == "small_business"] <- "Business Loan"
+
+myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "Misc"))
+myLoanData$Purpose[myLoanData$Purpose == "major_purpose"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Educational Expenses"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Home Improvements"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "major_purchase"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "moving"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "renewable_energy"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "vacation"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Take a Trip"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "wedding"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Medical Bills"] <- "Misc"
+
+myLoanData$Purpose <- droplevels(myLoanData$Purpose)
+
+
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
 
