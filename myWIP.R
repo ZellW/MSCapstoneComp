@@ -32,10 +32,12 @@ summary(myLoanData$MonthlyDebt)
 #Not using data table
 myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit == "#VALUE!"] <- NA #2 NAs
 myLoanData$MaximumOpenCredit = as.integer(myLoanData$MaximumOpenCredit)
-myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >74999] <- 75000
+#myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >74999] <- 75000
+myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >124999] <- 125000
 
 myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
-myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
+#myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
+myLoanData$AnnualIncome[myLoanData$AnnualIncome > 199999] <- 200000 
 myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
 
 #Using my own credit score code
@@ -47,20 +49,22 @@ myLoanData$CurrentCreditBalance <- as.integer(myLoanData$CurrentCreditBalance)
 myLoanData$CurrentCreditBalance[myLoanData$CurrentCreditBalance > 29999] <- 30000 
 
 myLoanData$NumberOfOpenAccounts <- as.integer(myLoanData$NumberOfOpenAccounts)
-myLoanData$NumberOfOpenAccounts[myLoanData$NumberOfOpenAccounts > 21] <- 22
+#myLoanData$NumberOfOpenAccounts[myLoanData$NumberOfOpenAccounts > 21] <- 22
+myLoanData$NumberOfOpenAccounts[myLoanData$NumberOfOpenAccounts > 14] <- 15
 
 myLoanData$YearsOfCreditHistory <- as.integer(myLoanData$YearsOfCreditHistory)
-myLoanData$YearsOfCreditHistory[myLoanData$YearsOfCreditHistory > 32] <- 33
+#myLoanData$YearsOfCreditHistory[myLoanData$YearsOfCreditHistory > 32] <- 33
+myLoanData$YearsOfCreditHistory[myLoanData$YearsOfCreditHistory > 19] <- 20
 
 myLoanData$CurrentLoanAmount <- as.integer(myLoanData$CurrentLoanAmount)
-myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1 #Do I really want to do this?
-myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 1
-
+myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1
 summary(myLoanData$CurrentLoanAmount)#Big Difference
+myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 1#Try MICE?
 
 myLoanData$YearsInCurrentJob <- as.integer(gsub("([0-9]*).*","\\1",myLoanData$YearsInCurrentJob))
 myLoanData$PaidInFull<-0
 myLoanData$ChargedOff<-0
+
 
 #DT[,NumberOfLoansClean:=length(LoanID),by="CustomerID"]
 #Big differecne.  I deleted the duplicate, this counts them as 2
