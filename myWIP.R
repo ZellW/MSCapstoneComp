@@ -99,7 +99,7 @@ myLoanData$Purpose <- droplevels(myLoanData$Purpose)
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
 
-myLoanData$DTI <- (myLoanData$Monthly_Debt * 12)/myLoanData$AnnualIncome
+myLoanData$DTI <- (myLoanData$MonthlyDebt * 12)/myLoanData$AnnualIncome#FIXED
 myLoanData$AllCreditProbs <- myLoanData$NumberOfCreditProblems + myLoanData$Bankruptcies + myLoanData$TaxLiens
 myLoanData$DisposableIncomePct <- myLoanData$DisposableIncome/myLoanData$AnnualIncome
 myLoanData$PctCreditUsed <- ifelse(myLoanData$MaximumOpenCredit==0 ,max(100,myLoanData$MaximumOpenCredit), myLoanData$CurrentCreditBalance / myLoanData$MaximumOpenCredit)

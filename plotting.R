@@ -98,7 +98,7 @@ myLoanData$Purpose <- droplevels(myLoanData$Purpose)
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
 
-myLoanData$DTI <- (myLoanData$Monthly_Debt * 12)/myLoanData$AnnualIncome
+myLoanData$DTI <- (myLoanData$MonthlyDebt * 12)/myLoanData$AnnualIncome#Fixed
 myLoanData$AllCreditProbs <- myLoanData$NumberOfCreditProblems + myLoanData$Bankruptcies + myLoanData$TaxLiens
 myLoanData$DisposableIncomePct <- myLoanData$DisposableIncome/myLoanData$AnnualIncome
 myLoanData$PctCreditUsed <- ifelse(myLoanData$MaximumOpenCredit==0 ,max(100,myLoanData$MaximumOpenCredit), myLoanData$CurrentCreditBalance / myLoanData$MaximumOpenCredit)
@@ -109,23 +109,23 @@ myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies 
 # write.csv(myLoanData, "tempCSV.csv")
 
 ####################################################################################
-all.cols <- c("LoanID", "CustomerID", "LoanStatus", "CurrentLoanAmount", "Term", "CreditScore", "YearsInCurrentJob", 
-              "HomeOwnership", "AnnualIncome", "Purpose", "MonthlyDebt", "YearsOfCreditHistory", "MonthsSinceLastDelinquent", 
-              "NumberOfOpenAccounts", "NumberOfCreditProblems", "CurrentCreditBalance", "MaximumOpenCredit", "Bankruptcies", 
-              "TaxLiens", "DisposableIncome", "AllCreditProbs", "DisposableIncomePct", "PctCreditUsed", "CreditHistoryWeight", 
-              "LoanToMaxAvailableRatio", "TotalCreditProblems")
-num.cols <- c("CurrentLoanAmount", "CreditScore", "YearsInCurrentJob", "AnnualIncome", "MonthlyDebt", "YearsOfCreditHistory", "MonthsSinceLastDelinquent", 
-              "NumberOfOpenAccounts", "NumberOfCreditProblems", "CurrentCreditBalance", "MaximumOpenCredit", "Bankruptcies", 
-              "TaxLiens", "DisposableIncome", "AllCreditProbs", "DisposableIncomePct", "PctCreditUsed", "CreditHistoryWeight", 
-              "LoanToMaxAvailableRatio", "TotalCreditProblems")
 
+## Features to plot 
+all.cols <- names(myLoanData)
+all.cols
 
-pairs(~., data=myLoanData[, num.cols])
+num.cols1 <- c("CurrentLoanAmount", "CreditScore", "YearsInCurrentJob", "AnnualIncome", "MonthlyDebt", "YearsOfCreditHistory", 
+               "MonthsSinceLastDelinquent", "NumberOfOpenAccounts", "NumberOfCreditProblems", "CurrentCreditBalance", 
+               "MaximumOpenCredit")
+num.cols2 <- c("Bankruptcies", "TaxLiens", "DisposableIncome", "AllCreditProbs", "DisposableIncomePct", "PctCreditUsed", 
+               "CreditHistoryWeight", "LoanToMaxAvailableRatio", "TotalCreditProblems", "DTI")
+
+pairs(~., data=myLoanData[sample(myLoanData, 8000), num.cols1])
 
 #Conditioned histograms
 plot.cols1 <- c("CurrentLoanAmount", "CreditScore", "YearsInCurrentJob", "AnnualIncome", "MonthlyDebt", "YearsOfCreditHistory", 
 "DisposableIncome")
-plot.cols2 <- c("DisposableIncomePct", "PctCreditUsed", "CreditHistoryWeight", "LoanToMaxAvailableRatio", "TotalCreditProblems")
+plot.cols2 <- c("DTI", "DisposableIncomePct", "PctCreditUsed", "CreditHistoryWeight", "LoanToMaxAvailableRatio", "TotalCreditProblems")
 
 ## Function to plot conditioned histograms
 auto.hist <- function(x) {
@@ -143,23 +143,58 @@ auto.hist <- function(x) {
       ggtitle(title) 
   }
 
-lapply(plot.cols1, auto.hist)
+lapply(num.cols1, auto.hist)
 
 ## Function to create conditioned box plots
 auto.box <- function(x) {
-  title <- paste("Box plot of", x, "by type of drive wheels")
+  title <- paste("Box plot of", x, "by loan status")
   ggplot(myLoanData, aes_string("LoanStatus", x)) +
     geom_boxplot() + ggtitle(title)
 }
-lapply(plot.cols2, auto.box)
+lapply(num.cols2, auto.box)
 
 ## Scatter plot using color to differentiate points
-scatter.auto <- function(x){
+auto.scatter <- function(x){
   require(ggplot2)
   title <- paste("CreditScore vs.", x, "with color by LoanStatus")
-  ggplot(myLoanData, aes_string(x, "CreditScore")) +
+  ggplot(myLoanData, aes_string("CreditScore", x)) +
     geom_point(aes(color = factor(LoanStatus))) +
     ggtitle(title)
 }
-lapply(plot.cols2, scatter.auto)
+lapply(num.cols1, auto.scatter)
 
+## Conditioned scatter plots 
+auto.scatter.cond <- function(x){   
+  require(ggplot2)   
+  library(gridExtra)   
+  title <- paste("price vs.", x, 'with color by credit score and DTI') 
+  ggplot(myLoanData, aes_string("CreditScore", x)) + 
+    geom_point(aes(color = factor(LoanStatus))) +
+    facet_grid(CreditScore ~ DTI) + ggtitle(title)
+  }
+
+auto.scatter.cond(num.cols1)
+
+## Bar plot of categorical features 
+bar.categorical <- function(x){   
+  library(ggplot2)   
+  if(!is.numeric(myLoanData[sample(2000),x])){     
+    capture.output(       
+      plot( ggplot(myLoanData, aes_string(x)) + geom_bar() + facet_grid(. ~ LoanStatus) +
+              ggtitle(paste("Counts of Loan Status level by",x))))
+  }
+}
+
+lapply(all.cols[-c(1:3)], bar.categorical)
+
+## Create Box plot of numeric features  
+box.numeric <- function(x){
+  library(ggplot2)   
+  if(is.numeric(myLoanData[sample(2000),x])){     
+    capture.output(
+      plot(ggplot(myLoanData, aes_string('LoanStatus', x)) + geom_boxplot() + 
+              ggtitle(paste("Counts of Loan Status by",x))))   
+     }#The capture.output function is used to capture and suppress voluminous 
+      #output from ggplot. 
+  } 
+lapply(all.cols[-c(1:3)], box.numeric)
