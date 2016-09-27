@@ -1,4 +1,5 @@
 
+library(dplyr)
 ####################################################################################
 #1 Load Data
 myLoanData <- read.csv("LoansTrainingSet.csv", header=TRUE, stringsAsFactors = FALSE)
@@ -9,6 +10,23 @@ myLoanData<- myLoanData[!duplicated(myLoanData),]
 #3A R Script - Column Names
 columnnames<-c("LoanID","CustomerID","LoanStatus","CurrentLoanAmount","Term","CreditScore","YearsInCurrentJob","HomeOwnership","AnnualIncome","Purpose","MonthlyDebt","YearsOfCreditHistory","MonthsSinceLastDelinquent","NumberOfOpenAccounts","NumberOfCreditProblems","CurrentCreditBalance","MaximumOpenCredit","Bankruptcies","TaxLiens")
 colnames(myLoanData)<-columnnames
+rm(columnnames)
+
+#Fix duplicates related to Credit Score and Annual Income
+  tmpDupeList <- unique(myLoanData[duplicated(myLoanData$CustomerID),])#Returns the individual(only 1 record) duplicate Cust_IDs
+  tmpDupeListCustomerID <- tmpDupeList[,2]#Provides the list of Cust_IDs that have duplicates
+  rm(tmpDupeList)
+  #Subset master with the values in the duplicated Cust_ID DF
+  tmpDupeDF <- filter(myLoanData, CustomerID %in% tmpDupeListCustomerID)#Got all the dupes in one DF, now remove them from master file
+  myLoanData <- filter(myLoanData, !CustomerID %in% tmpDupeListCustomerID)#All unique Cust_IDs YEAH!!  Will RBIND later
+  rm(tmpDupeListCustomerID)
+  #Now work on the duplcate file
+  tmpDupeDF <- arrange(tmpDupeDF, desc(CustomerID))
+  
+  tmpDupeDF <- filter(tmpDupeDF, !is.na(CreditScore))
+  tmpDupeDF <- filter(tmpDupeDF, !CurrentLoanAmount == 99999999)
+  myLoanData <- rbind(myLoanData, tmpDupeDF)
+  rm(tmpDupeDF)
 
 #3B:  
 myLoanData$Bankruptcies<-as.integer(myLoanData$Bankruptcies)
@@ -16,9 +34,7 @@ myLoanData$TaxLiens<-as.integer(myLoanData$TaxLiens)
 
 
 #4:  R Script
-
 #require(data.table)
-
 #myLoanData$LoanStatusNum<-ifelse(myLoanData$LoanStatus=="Charged Off",1,0)  #Why?
 
 #Convert String to Numeric
@@ -41,10 +57,29 @@ myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
 # myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
 # myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
 
-#Using my own credit score code
-myLoanData$CreditScore[is.na(myLoanData$CreditScore)] <- 0
-myLoanData$CreditScore[myLoanData$CreditScore > 999] <- myLoanData$CreditScore/10
+myLoanData$CreditScore[myLoanData$CreditScore > 999 & !is.na(myLoanData$CreditScore)] <- myLoanData$CreditScore/10
 summary(myLoanData$CreditScore)
+
+#myLoanData$CreditScore[is.na(myLoanData$CreditScore)] <- 0#Is this the right thing to do??  NO!
+#Lets get the average CS for the records where the loan was paid off and the ave for Charged off & long term vs Short Term
+#Filter myLoanData into new DF, change the NA the the right mean and then rbind back
+tmpCSDF <- filter(myLoanData, is.na(CreditScore))
+myLoanData <- filter(myLoanData, !is.na(CreditScore))
+
+avePaidOff_CS_LT <-as.integer(myLoanData %>%  filter(LoanStatus=="Fully Paid", Term=="Long Term") %>% summarize(tmpMean = mean(CreditScore)))
+avePaidOff_CS_ST <-as.integer(myLoanData %>%  filter(LoanStatus=="Fully Paid", Term=="Short Term") %>% summarize(tmpMean = mean(CreditScore)))
+aveChargedOff_CS_LT <- as.integer(myLoanData %>%  filter(LoanStatus=="Charged Off", Term=="Long Term") %>% summarize(tmpMean = mean(CreditScore)))
+aveChargedOff_CS_ST <- as.integer(myLoanData %>%  filter(LoanStatus=="Charged Off", Term=="Short Term") %>% summarize(tmpMean = mean(CreditScore)))
+
+tmpCSDF$CreditScore[tmpCSDF$LoanStatus=="Fully Paid" & tmpCSDF$Term=="Long Term"] <- avePaidOff_CS_LT
+tmpCSDF$CreditScore[tmpCSDF$LoanStatus=="Fully Paid" & tmpCSDF$Term=="Short Term"] <- avePaidOff_CS_ST
+tmpCSDF$CreditScore[tmpCSDF$LoanStatus=="Charged Off" & tmpCSDF$Term=="Long Term"] <- aveChargedOff_CS_LT
+tmpCSDF$CreditScore[tmpCSDF$LoanStatus=="Charged Off" & tmpCSDF$Term=="Short Term"] <- aveChargedOff_CS_ST
+
+myLoanData <- rbind(myLoanData, tmpCSDF)
+summary(myLoanData$CreditScore)
+rm(tmpCSDF, aveChargedOff_CS_ST, aveChargedOff_CS_LT, avePaidOff_CS_ST, avePaidOff_CS_LT)
+
 
 myLoanData$CurrentCreditBalance <- as.integer(myLoanData$CurrentCreditBalance)
 # myLoanData$CurrentCreditBalance[myLoanData$CurrentCreditBalance > 29999] <- 30000 
@@ -105,6 +140,9 @@ myLoanData$PctCreditUsed <- ifelse(myLoanData$MaximumOpenCredit==0 ,max(100,myLo
 myLoanData$CreditHistoryWeight <- myLoanData$CreditScore * myLoanData$YearsOfCreditHistory
 myLoanData$LoanToMaxAvailableRatio <- ifelse(myLoanData$MaximumOpenCredit == 0 ,100, myLoanData$CurrentLoanAmount/ myLoanData$MaximumOpenCredit)
 myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies + myLoanData$NumberOfCreditProblems
+
+
+
 
 # write.csv(myLoanData, "tempCSV.csv")
 
