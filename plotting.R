@@ -8,9 +8,14 @@ myLoanData <- read.csv("LoansTrainingSet.csv", header=TRUE, stringsAsFactors = F
 myLoanData<- myLoanData[!duplicated(myLoanData),]
 
 #3A R Script - Column Names
-columnnames<-c("LoanID","CustomerID","LoanStatus","CurrentLoanAmount","Term","CreditScore","YearsInCurrentJob","HomeOwnership","AnnualIncome","Purpose","MonthlyDebt","YearsOfCreditHistory","MonthsSinceLastDelinquent","NumberOfOpenAccounts","NumberOfCreditProblems","CurrentCreditBalance","MaximumOpenCredit","Bankruptcies","TaxLiens")
+columnnames<-c("LoanID","CustomerID","LoanStatus","CurrentLoanAmount","Term","CreditScore","YearsInCurrentJob",
+               "HomeOwnership","AnnualIncome","Purpose","MonthlyDebt","YearsOfCreditHistory","MonthsSinceLastDelinquent",
+               "NumberOfOpenAccounts","NumberOfCreditProblems","CurrentCreditBalance","MaximumOpenCredit","Bankruptcies",
+               "TaxLiens")
 colnames(myLoanData)<-columnnames
 rm(columnnames)
+#Add special column to hold values to overwrite ML results.  0 - null, 1 - Charged Off, 2- Paid Full
+myLoanData$SpecialCase <- 0
 
 #Fix duplicates related to Credit Score and Annual Income
   tmpDupeList <- unique(myLoanData[duplicated(myLoanData$CustomerID),])#Returns the individual(only 1 record) duplicate Cust_IDs
@@ -54,6 +59,15 @@ myLoanData <- myLoanData[complete.cases(myLoanData$MaximumOpenCredit),] ########
 # myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >74999] <- 75000
 
 myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
+#summary(myLoanData$AnnualIncome) 16088 NAs
+#NA + 691 CS = Charged Off; NA + 701 CS = Fully Paid; NA + 721 = Charged Off; NA + 729 CS = Fully Paid
+myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==691] <- 1
+
+myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==701] <- 2
+myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==721] <- 1
+myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==729] <- 2
+
+
 # myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
 # myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
 
@@ -90,13 +104,23 @@ myLoanData$NumberOfOpenAccounts <- as.integer(myLoanData$NumberOfOpenAccounts)
 myLoanData$YearsOfCreditHistory <- as.integer(myLoanData$YearsOfCreditHistory)
 # myLoanData$YearsOfCreditHistory[myLoanData$YearsOfCreditHistory > 32] <- 33
 
-# myLoanData$CurrentLoanAmount <- as.integer(myLoanData$CurrentLoanAmount)
-# myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1 #Do I really want to do this?
-# myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 1
+#Strategy for MonthsSinceLastDelinquent
+#Make NA = 99 - longer is better
+#Add new column EverDelinquent 0 or 1
+myLoanData$MonthsSinceLastDelinquent[is.na(myLoanData$MonthsSinceLastDelinquent)] <- 99
+myLoanData$EverDelinquent <- ifelse(myLoanData$MonthsSinceLastDelinquent == 99, 0, 1)
+
+myLoanData$CurrentLoanAmount <- as.integer(myLoanData$CurrentLoanAmount)
+#myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1 #Do I really want to do this?
+myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 0
 
 summary(myLoanData$CurrentLoanAmount)#Big Difference
 
 myLoanData$YearsInCurrentJob <- as.integer(gsub("([0-9]*).*","\\1",myLoanData$YearsInCurrentJob))
+summary(myLoanData$YearsInCurrentJob)
+#11,129 NAs.  Median - 7 Mean - 6.42. Replace with mean but need to ensure Median > Mean
+myLoanData$YearsInCurrentJob[is.na(myLoanData$YearsInCurrentJob)] <- as.integer(1.1*mean(myLoanData$YearsInCurrentJob, na.rm = TRUE))
+summary(myLoanData$YearsInCurrentJob)
 # myLoanData$PaidInFull<-0
 # myLoanData$ChargedOff<-0
 
@@ -134,17 +158,17 @@ myLoanData$Purpose <- droplevels(myLoanData$Purpose)
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
 
 myLoanData$DTI <- (myLoanData$MonthlyDebt * 12)/myLoanData$AnnualIncome#Fixed
-myLoanData$AllCreditProbs <- myLoanData$NumberOfCreditProblems + myLoanData$Bankruptcies + myLoanData$TaxLiens
+myLoanData$AllCreditProbs <- myLoanData$NumberOfCreditProblems + myLoanData$Bankruptcies + myLoanData$TaxLiens + myLoanData$EverDelinquent
 myLoanData$DisposableIncomePct <- myLoanData$DisposableIncome/myLoanData$AnnualIncome
 myLoanData$PctCreditUsed <- ifelse(myLoanData$MaximumOpenCredit==0 ,max(100,myLoanData$MaximumOpenCredit), myLoanData$CurrentCreditBalance / myLoanData$MaximumOpenCredit)
 myLoanData$CreditHistoryWeight <- myLoanData$CreditScore * myLoanData$YearsOfCreditHistory
 myLoanData$LoanToMaxAvailableRatio <- ifelse(myLoanData$MaximumOpenCredit == 0 ,100, myLoanData$CurrentLoanAmount/ myLoanData$MaximumOpenCredit)
-myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies + myLoanData$NumberOfCreditProblems
+#myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies + myLoanData$NumberOfCreditProblems
 
 
 
 
-# write.csv(myLoanData, "tempCSV.csv")
+write.csv(myLoanData, "tempCSV.csv")
 
 ####################################################################################
 
