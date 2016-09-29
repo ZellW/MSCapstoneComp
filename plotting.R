@@ -15,7 +15,7 @@ columnnames<-c("LoanID","CustomerID","LoanStatus","CurrentLoanAmount","Term","Cr
 colnames(myLoanData)<-columnnames
 rm(columnnames)
 #Add special column to hold values to overwrite ML results.  0 - null, 1 - Charged Off, 2- Paid Full
-myLoanData$SpecialCase <- 0
+myLoanData$SpecialCase <- as.integer(0)
 
 #Fix duplicates related to Credit Score and Annual Income
   tmpDupeList <- unique(myLoanData[duplicated(myLoanData$CustomerID),])#Returns the individual(only 1 record) duplicate Cust_IDs
@@ -37,7 +37,6 @@ myLoanData$SpecialCase <- 0
 myLoanData$Bankruptcies<-as.integer(myLoanData$Bankruptcies)
 myLoanData$TaxLiens<-as.integer(myLoanData$TaxLiens)
 
-
 #4:  R Script
 #require(data.table)
 #myLoanData$LoanStatusNum<-ifelse(myLoanData$LoanStatus=="Charged Off",1,0)  #Why?
@@ -58,21 +57,8 @@ myLoanData <- myLoanData[complete.cases(myLoanData$MaximumOpenCredit),] ########
 
 # myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >74999] <- 75000
 
-myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
-#summary(myLoanData$AnnualIncome) 16088 NAs
-#NA + 691 CS = Charged Off; NA + 701 CS = Fully Paid; NA + 721 = Charged Off; NA + 729 CS = Fully Paid
-myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==691] <- 1
-
-myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==701] <- 2
-myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==721] <- 1
-myLoanData$SpecialCase[is.na(myLoanData$SpecialCase) & myLoanData$CreditScore ==729] <- 2
-
-
-# myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
-# myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
-
 myLoanData$CreditScore[myLoanData$CreditScore > 999 & !is.na(myLoanData$CreditScore)] <- myLoanData$CreditScore/10
-summary(myLoanData$CreditScore)
+#summary(myLoanData$CreditScore)
 
 #myLoanData$CreditScore[is.na(myLoanData$CreditScore)] <- 0#Is this the right thing to do??  NO!
 #Lets get the average CS for the records where the loan was paid off and the ave for Charged off & long term vs Short Term
@@ -94,6 +80,20 @@ myLoanData <- rbind(myLoanData, tmpCSDF)
 summary(myLoanData$CreditScore)
 rm(tmpCSDF, aveChargedOff_CS_ST, aveChargedOff_CS_LT, avePaidOff_CS_ST, avePaidOff_CS_LT)
 
+#Noted that certain Credit Scores has unusually high percentages
+#691 CS = Charged Off; 701 CS = Fully Paid; 721 = Charged Off; CS = Fully Paid
+myLoanData$SpecialCase[myLoanData$CreditScore == 691] <- 1
+myLoanData$SpecialCase[myLoanData$CreditScore == 701] <- 2
+myLoanData$SpecialCase[myLoanData$CreditScore == 721] <- 1
+myLoanData$SpecialCase[myLoanData$CreditScore == 729] <- 2
+myLoanData$SpecialCase[myLoanData$CreditScore == 740] <- 2
+myLoanData$SpecialCase[myLoanData$CreditScore > 741] <- 2
+
+# myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
+# myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
+
+myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
+#summary(myLoanData$AnnualIncome) 16088 NAs
 
 myLoanData$CurrentCreditBalance <- as.integer(myLoanData$CurrentCreditBalance)
 # myLoanData$CurrentCreditBalance[myLoanData$CurrentCreditBalance > 29999] <- 30000 
@@ -133,26 +133,25 @@ myLoanData$Purpose <- as.factor(myLoanData$Purpose)
 myLoanData$Purpose[myLoanData$Purpose == "other"] <- "Other"
 
 #Add a level
-# myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "BuyCarHouse"))
-# myLoanData$Purpose[myLoanData$Purpose == "Buy House"] <- "BuyCarHouse"
-# myLoanData$Purpose[myLoanData$Purpose == "Buy a Car"] <- "BuyCarHouse"
-# 
-# myLoanData$Purpose[myLoanData$Purpose == "small_business"] <- "Business Loan"
-# 
-# myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "Misc"))
-# myLoanData$Purpose[myLoanData$Purpose == "major_purpose"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "Educational Expenses"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "Home Improvements"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "major_purchase"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "moving"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "renewable_energy"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "vacation"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "Take a Trip"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "wedding"] <- "Misc"
-# myLoanData$Purpose[myLoanData$Purpose == "Medical Bills"] <- "Misc"
+myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "BuyCarHouse"))
+myLoanData$Purpose[myLoanData$Purpose == "Buy House"] <- "BuyCarHouse"
+myLoanData$Purpose[myLoanData$Purpose == "Buy a Car"] <- "BuyCarHouse"
+
+myLoanData$Purpose[myLoanData$Purpose == "small_business"] <- "Business Loan"
+
+myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "Misc"))
+myLoanData$Purpose[myLoanData$Purpose == "major_purpose"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Educational Expenses"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Home Improvements"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "major_purchase"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "moving"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "renewable_energy"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "vacation"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Take a Trip"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "wedding"] <- "Misc"
+myLoanData$Purpose[myLoanData$Purpose == "Medical Bills"] <- "Misc"
 
 myLoanData$Purpose <- droplevels(myLoanData$Purpose)
-
 
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
@@ -165,10 +164,12 @@ myLoanData$CreditHistoryWeight <- myLoanData$CreditScore * myLoanData$YearsOfCre
 myLoanData$LoanToMaxAvailableRatio <- ifelse(myLoanData$MaximumOpenCredit == 0 ,100, myLoanData$CurrentLoanAmount/ myLoanData$MaximumOpenCredit)
 #myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies + myLoanData$NumberOfCreditProblems
 
+#New Special Cases:  when LoanToMaxAvailableRatio = 0 (8249), 100% Fully Paid Disposable Income > .452
+myLoanData$SpecialCase[myLoanData$LoanToMaxAvailableRatio ==0 & myLoanData$DisposableIncomePct > 0.452] <- 2
 
 
 
-write.csv(myLoanData, "tempCSV.csv")
+write.csv(myLoanData, "tempCSV1.csv")
 
 ####################################################################################
 
@@ -182,7 +183,7 @@ num.cols1 <- c("CurrentLoanAmount", "CreditScore", "YearsInCurrentJob", "AnnualI
 num.cols2 <- c("Bankruptcies", "TaxLiens", "DisposableIncome", "AllCreditProbs", "DisposableIncomePct", "PctCreditUsed", 
                "CreditHistoryWeight", "LoanToMaxAvailableRatio", "TotalCreditProblems", "DTI")
 
-pairs(~., data=myLoanData[sample(myLoanData, 8000), num.cols1])
+#pairs(~., data=myLoanData[sample(myLoanData, 8000), num.cols1])
 
 #Conditioned histograms
 plot.cols1 <- c("CurrentLoanAmount", "CreditScore", "YearsInCurrentJob", "AnnualIncome", "MonthlyDebt", "YearsOfCreditHistory", 
