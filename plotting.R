@@ -17,6 +17,8 @@ rm(columnnames)
 #Add special column to hold values to overwrite ML results.  0 - null, 1 - Charged Off, 2- Paid Full
 myLoanData$SpecialCase <- as.integer(0)
 
+myLoanData$Term <- as.factor(myLoanData$Term)
+
 #Fix duplicates related to Credit Score and Annual Income
   tmpDupeList <- unique(myLoanData[duplicated(myLoanData$CustomerID),])#Returns the individual(only 1 record) duplicate Cust_IDs
   tmpDupeListCustomerID <- tmpDupeList[,2]#Provides the list of Cust_IDs that have duplicates
@@ -112,6 +114,7 @@ myLoanData$EverDelinquent <- ifelse(myLoanData$MonthsSinceLastDelinquent == 99, 
 
 myLoanData$CurrentLoanAmount <- as.integer(myLoanData$CurrentLoanAmount)
 #myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1 #Do I really want to do this?
+myLoanData$SpecialCase[myLoanData$CurrentLoanAmount == 99999999] <- 2
 myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 0
 
 summary(myLoanData$CurrentLoanAmount)#Big Difference
@@ -133,25 +136,28 @@ myLoanData$Purpose <- as.factor(myLoanData$Purpose)
 myLoanData$Purpose[myLoanData$Purpose == "other"] <- "Other"
 
 #Add a level
+#Going to revamp - based on the counts for grouping
 myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "BuyCarHouse"))
 myLoanData$Purpose[myLoanData$Purpose == "Buy House"] <- "BuyCarHouse"
 myLoanData$Purpose[myLoanData$Purpose == "Buy a Car"] <- "BuyCarHouse"
 
-myLoanData$Purpose[myLoanData$Purpose == "small_business"] <- "Business Loan"
+#myLoanData$Purpose[myLoanData$Purpose == "small_business"] <- "Business Loan"
 
 myLoanData$Purpose <- factor(myLoanData$Purpose, levels = c(levels(myLoanData$Purpose), "Misc"))
 myLoanData$Purpose[myLoanData$Purpose == "major_purpose"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "Educational Expenses"] <- "Misc"
-myLoanData$Purpose[myLoanData$Purpose == "Home Improvements"] <- "Misc"
-myLoanData$Purpose[myLoanData$Purpose == "major_purchase"] <- "Misc"
+#myLoanData$Purpose[myLoanData$Purpose == "Home Improvements"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "moving"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "renewable_energy"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "vacation"] <- "Misc"
-myLoanData$Purpose[myLoanData$Purpose == "Take a Trip"] <- "Misc"
+#myLoanData$Purpose[myLoanData$Purpose == "Take a Trip"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "wedding"] <- "Misc"
 myLoanData$Purpose[myLoanData$Purpose == "Medical Bills"] <- "Misc"
 
 myLoanData$Purpose <- droplevels(myLoanData$Purpose)
+
+myLoanData$HomeOwnership[myLoanData$HomeOwnership == "HaveMortgage"] <- "Home Mortgage"
+myLoanData$HomeOwnership <- as.factor(myLoanData$HomeOwnership)
 
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
