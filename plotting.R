@@ -20,20 +20,23 @@ myLoanData$SpecialCase <- as.integer(0)
 myLoanData$Term <- as.factor(myLoanData$Term)
 
 #Fix duplicates related to Credit Score and Annual Income
-  tmpDupeList <- unique(myLoanData[duplicated(myLoanData$CustomerID),])#Returns the individual(only 1 record) duplicate Cust_IDs
-  tmpDupeListCustomerID <- tmpDupeList[,2]#Provides the list of Cust_IDs that have duplicates
+  tmpDupeList <- unique(myLoanData[duplicated(myLoanData$LoanID),])#Returns the individual(only 1 record) duplicate Cust_IDs
+
+  tmpDupeListLoanID <- tmpDupeList[,1]#Provides the list of LoanIDs that have duplicates
+  
   rm(tmpDupeList)
   #Subset master with the values in the duplicated Cust_ID DF
-  tmpDupeDF <- filter(myLoanData, CustomerID %in% tmpDupeListCustomerID)#Got all the dupes in one DF, now remove them from master file
-  myLoanData <- filter(myLoanData, !CustomerID %in% tmpDupeListCustomerID)#All unique Cust_IDs YEAH!!  Will RBIND later
-  rm(tmpDupeListCustomerID)
+  tmpDupeDF <- filter(myLoanData, LoanID %in% tmpDupeListLoanID)#Got all the dupes in one DF, now remove them from master file
+  myLoanDataLoanID <- filter(myLoanData, !LoanID %in% tmpDupeListLoanID)#All unique LoanIDs YEAH!!  Will RBIND later
+
+  #rm(tmpDupeListLoanID)
   #Now work on the duplcate file
-  tmpDupeDF <- arrange(tmpDupeDF, desc(CustomerID))
-  
+  tmpDupeDF <- arrange(tmpDupeDF, desc(LoanID))
+
   tmpDupeDF <- filter(tmpDupeDF, !is.na(CreditScore))
   tmpDupeDF <- filter(tmpDupeDF, !CurrentLoanAmount == 99999999)
-  myLoanData <- rbind(myLoanData, tmpDupeDF)
-  rm(tmpDupeDF)
+  myLoanData <- rbind(myLoanDataLoanID, tmpDupeDF)
+  rm(tmpDupeDF, tmpDupeListLoanID, myLoanDataLoanID)
 
 #3B:  
 myLoanData$Bankruptcies<-as.integer(myLoanData$Bankruptcies)
@@ -55,7 +58,8 @@ myLoanData$MonthlyDebt<-as.numeric(myLoanData$MonthlyDebt)
 #Not using data table
 myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit == "#VALUE!"] <- NA #2 NAs
 myLoanData$MaximumOpenCredit = as.integer(myLoanData$MaximumOpenCredit)
-myLoanData <- myLoanData[complete.cases(myLoanData$MaximumOpenCredit),] #####################################NEW!!!
+myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit==0] <- 225
+#myLoanData <- myLoanData[complete.cases(myLoanData$MaximumOpenCredit),] #####################################NEW!!!
 
 # myLoanData$MaximumOpenCredit[myLoanData$MaximumOpenCredit >74999] <- 75000
 
@@ -90,9 +94,12 @@ myLoanData$SpecialCase[myLoanData$CreditScore == 721] <- 1
 myLoanData$SpecialCase[myLoanData$CreditScore == 729] <- 2
 myLoanData$SpecialCase[myLoanData$CreditScore == 740] <- 2
 myLoanData$SpecialCase[myLoanData$CreditScore > 741] <- 2
+myLoanData$SpecialCase[myLoanData$CurrentLoanAmount == 99999999] <- 2
+
 
 # myLoanData$AnnualIncome[myLoanData$AnnualIncome > 138999] <- 139000 
-# myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
+myLoanData$AnnualIncome[myLoanData$AnnualIncome < 10001] <- 10000 
+tmpmyLoanData <- myLoanData[!myLoanData$AnnualIncome > 2000000,]
 
 myLoanData$AnnualIncome <- as.integer(myLoanData$AnnualIncome)
 #summary(myLoanData$AnnualIncome) 16088 NAs
@@ -110,12 +117,13 @@ myLoanData$YearsOfCreditHistory <- as.integer(myLoanData$YearsOfCreditHistory)
 #Make NA = 99 - longer is better
 #Add new column EverDelinquent 0 or 1
 myLoanData$MonthsSinceLastDelinquent[is.na(myLoanData$MonthsSinceLastDelinquent)] <- 99
-myLoanData$EverDelinquent <- ifelse(myLoanData$MonthsSinceLastDelinquent == 99, 0, 1)
+myLoanData$MonthsSinceLastDelinquent <-  ifelse(myLoanData$MonthlyDebt > 83, 1, ifelse(myLoanData$MonthlyDebt >12, 2, 3))
+#myLoanData$EverDelinquent <- ifelse(myLoanData$MonthsSinceLastDelinquent == 99, 0, 1)
 
 myLoanData$CurrentLoanAmount <- as.integer(myLoanData$CurrentLoanAmount)
 #myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 0] <- 1 #Do I really want to do this?
 myLoanData$SpecialCase[myLoanData$CurrentLoanAmount == 99999999] <- 2
-myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 0
+#myLoanData$CurrentLoanAmount[myLoanData$CurrentLoanAmount == 99999999] <- 0#Use MICE?
 
 summary(myLoanData$CurrentLoanAmount)#Big Difference
 
@@ -161,11 +169,15 @@ myLoanData$HomeOwnership <- as.factor(myLoanData$HomeOwnership)
 
 #12
 myLoanData$DisposableIncome <- myLoanData$AnnualIncome -((myLoanData$MonthlyDebt *12) - ifelse(myLoanData$HomeOwnership == "Own Home", 0, -(myLoanData$AnnualIncome * .15)))
+####myLoanData$SpecialCase[myl$DisposableIncome > 150000]
 
 myLoanData$DTI <- (myLoanData$MonthlyDebt * 12)/myLoanData$AnnualIncome#Fixed
 myLoanData$AllCreditProbs <- myLoanData$NumberOfCreditProblems + myLoanData$Bankruptcies + myLoanData$TaxLiens + myLoanData$EverDelinquent
 myLoanData$DisposableIncomePct <- myLoanData$DisposableIncome/myLoanData$AnnualIncome
-myLoanData$PctCreditUsed <- ifelse(myLoanData$MaximumOpenCredit==0 ,max(100,myLoanData$MaximumOpenCredit), myLoanData$CurrentCreditBalance / myLoanData$MaximumOpenCredit)
+
+myLoanData$PctCreditUsed <- myLoanData$CurrentCreditBalance / myLoanData$MaximumOpenCredit
+
+
 myLoanData$CreditHistoryWeight <- myLoanData$CreditScore * myLoanData$YearsOfCreditHistory
 myLoanData$LoanToMaxAvailableRatio <- ifelse(myLoanData$MaximumOpenCredit == 0 ,100, myLoanData$CurrentLoanAmount/ myLoanData$MaximumOpenCredit)
 #myLoanData$TotalCreditProblems <- myLoanData$TaxLiens + myLoanData$Bankruptcies + myLoanData$NumberOfCreditProblems
@@ -212,7 +224,7 @@ auto.hist <- function(x) {
       ggtitle(title) 
   }
 
-lapply(num.cols1, auto.hist)
+lapply(plot.cols2, auto.hist)
 
 ## Function to create conditioned box plots
 auto.box <- function(x) {
@@ -230,7 +242,7 @@ auto.scatter <- function(x){
     geom_point(aes(color = factor(LoanStatus))) +
     ggtitle(title)
 }
-lapply(num.cols1, auto.scatter)
+lapply(plot.cols1, auto.scatter)
 
 ## Conditioned scatter plots 
 auto.scatter.cond <- function(x){   
